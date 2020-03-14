@@ -117,31 +117,66 @@ journalctl --user-unit onedrive -f
 
 Note: systemd is supported on Ubuntu only starting from version 15.04
 
-### Using multiple accounts
-You can run multiple instances of the application specifying a different config directory in order to handle multiple OneDrive accounts.
-To do this you can use the `--confdir` parameter.
-Here is an example:
-```sh
-onedrive --monitor --confdir="~/.config/onedrivePersonal" &
-onedrive --monitor --confdir="~/.config/onedriveWork" &
+## Using multiple accounts
+First follow the basic installation steps, do not run. 
+
+You can run multiple instances of the application by specifying a different config directory in  `~/.config` inorder to handle multiple OneDrive accounts. You need to create multiple folders in `~/.config` with the respective drive names prefereably in camelCase.
+
+You need to ensure config file is placed within the folder
+
+For exaple `~/.config/{onedriveAccountName}` can be setup as
+
 ```
+# Directory where the files will be synced
+sync_dir = "~/{oneDriveAccountName}"
+
+# Skip files and directories that match this pattern
+skip_file = ".*|~*"
+```
+
+### Create System Services
+
+Go to path `/usr/lib/systemd/user` create .service file for each account
+
+For example `{onedriveAccountName}.service` should contain
+
+```
+[Unit]
+Description=OneDrive Free Client
+Documentation=https://github.com/skilion/onedrive
+
+[Service]
+ExecStart=/usr/local/bin/onedrive -m --confdir="~/.config/{onedriveAccountName}"
+Restart=no
+
+[Install]
+WantedBy=default.target
+```
+Now run the below command first to configure the client, once few files are downloaded hit `Ctrl+C` to exit. 
+```
+onedrive --monitor --confdir="~/.config/{onedriveAccountName}"
+```
+If you have multiple accounts that needs to be auto synced run this each time in the terminal to setup the client
+```
+onedrive --monitor --confdir="~/.config/{onedriveAccountName_1}"
+```
+#### Help: 
+`--confdir` parameter sets the path to the configuration.
 
 `--monitor` keeps the application running and monitoring for changes
 
-`&` puts the application in background and leaves the terminal interactive
+If you'd like you can put `&` at the end of the command so it leaves the application in background and returns to the terminal interactive.
+
+Enable OneDrive Service for the account to sync your files automatically, enable and start the systemd service:
+```sh
+systemctl --user enable {onedriveAccountName}
+systemctl --user start {onedriveAccountName}
+```
+Use HTOP to check if the task is running in the background
+
+Use `systemctl --user status {onedriveAccountName}` to check any errors if the program isn't running. 
 
 ## Extra
-
-### Reporting issues
-If you encounter any bugs you can report them here on Github. Before filing an issue be sure to:
-
-1. Check the version of the application you are using `onedrive --version`
-2. Run the application in verbose mode `onedrive --verbose`
-3. Have the log of the error (preferably uploaded on an external website such as [pastebin](https://pastebin.com/))
-4. Collect any information that you may think it is relevant to the error
-	- The steps to trigger the error
-	- What have you already done to try solve it
-	- ...
 
 ### All available commands:
 ```text
@@ -163,3 +198,10 @@ no option        Sync and exit
 ### File naming
 The files and directories in the synchronization directory must follow the [Windows naming conventions](https://msdn.microsoft.com/en-us/library/aa365247).
 The application will crash for example if you have two files with the same name but different case. This is expected behavior and won't be fixed.
+
+### Multi Account Sync Issues
+If the sync isn't starting 
+- Check file names
+- Path Names
+- Reference Paths
+- To avoid errors do not use SPACES between words, use camelCase for naming configs and service files.
